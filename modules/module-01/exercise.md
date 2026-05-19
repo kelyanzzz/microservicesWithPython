@@ -26,11 +26,14 @@ A bounded context is a part of the system that has a clear responsibility and ow
 
 For each bounded context you identify, fill in the table:
 
-| Bounded Context | Responsibilities                                         | Owned Entities | Team        |
-| --------------- | -------------------------------------------------------- | -------------- | ----------- |
-| Identity        | Manages who users are, handles registration and profiles | User, Session  | Platform    |
-| Game Library    | _(fill in)_                                              | _(fill in)_    | _(fill in)_ |
-| _(add more)_    |                                                          |                |             |
+| Bounded Context | Responsibilities | Owned Entities | Team |
+| --------------- | ------------------------------------------------------------ | -------------------------- | ---------------- |
+| Identity | Manages who users are, handles registration and profiles | User, FriendRelationship | Platform |
+| Game Library | Manages game catalog, metadata, and genres | Game, Genre | Catalog |
+| Activity | Tracks play sessions and user actions | Activity, PlaySession | Engagement |
+| Auth | JWT issuance and validation | Token | Platform |
+| Consent & Audit | GDPR opt-in tracking and structured audit trail | ConsentRecord, ActivityLog | Legal/Compliance |
+| Notification | Async delivery of alerts to users | Notification | Engagement |
 
 There is no single correct answer: what matters is that you can justify each row.
 
@@ -55,7 +58,37 @@ Payload: { activity_id, user_id, action, game_id, timestamp }
 ```
 
 Focus on the flows that feel non-obvious. You do not need to document every possible pair.
+:
+## Task 2 — Define service contracts
 
+**activity-service → logging-service**
+Direction: activity-service → logging-service
+Trigger: user logs a play session
+Protocol: RabbitMQ message (async)
+Payload: { activity_id, user_id, action, game_id, timestamp }
+Why async: logging is fire-and-forget. A slow or crashed logging-service must never block the user's activity write path.
+
+**activity-service → notification-service**
+Direction: activity-service → notification-service
+Trigger: a friend logs an activity that the user is subscribed to
+Protocol: RabbitMQ message (async)
+Payload: { user_id, friend_id, action, game_id, timestamp }
+Why async: notification delivery latency must not stall the activity write path.
+
+**gateway → auth-service**
+Direction: gateway → auth-service
+Trigger: every inbound HTTP request carrying a Bearer token
+Protocol: REST (synchronous)
+Payload request: { token }
+Payload response: { user_id, roles, valid: bool }
+Why sync: authentication is a prerequisite for routing — the gateway must know the token is valid before forwarding the request.
+
+**gateway → downstream services**
+Direction: gateway → user-service / game-service / activity-service
+Trigger: authenticated request arrives for a resource
+Protocol: REST (synchronous HTTP proxy)
+Payload: forwarded request with injected headers (X-User-Id, X-User-Roles)
+Note: downstream services trust the gateway's injected headers and never re-validate tokens themselves.
 ---
 
 ## Task 3 — Draw the service map _(~20 min)_
@@ -69,6 +102,7 @@ Draw the full GameHub service map:
 
 This can be a sketch on paper, a whiteboard photo, or ASCII art committed to your branch.
 
+![alt text](service-map.jpg-1.jpeg)
 ---
 
 ## Discussion _(~15 min)_
