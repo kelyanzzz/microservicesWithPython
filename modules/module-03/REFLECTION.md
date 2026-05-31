@@ -37,7 +37,7 @@ What is the consequence for the user in each case if the downstream service is u
 
 > *Your answer:*This one actually made me think. Both validate_user and fetch_game are calls to other services, but they behave completely differently and that's on purpose.
 
-validate_user blocks everything — if the user doesn't exist, we stop immediately and return 404. There's no point saving an activity for a user that doesn't exist, the data would be meaningless.
+validate_user blocks everything if the user doesn't exist, we stop immediately and return 404. There's no point saving an activity for a user that doesn't exist, the data would be meaningless.
 
 fetch_game is the opposite if game-service is down, we just set game to null and carry on. The activity still gets saved. We tested this by stopping game-service mid-test and it worked exactly as expected. The risk of blocking on fetch_game would be that a game-service outage kills activity recording for everyone, which makes no sense since the two things are not related.
 ---
