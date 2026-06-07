@@ -11,6 +11,9 @@ ROUTES: dict[str, str] = {
     'notifications': settings.notification_service_url,
 }
 
+# Services that don't use /v1 prefix
+NO_VERSION_PREFIX = {'notifications'}
+
 @app.get('/health')
 async def health():
     return {'status': 'ok', 'service': 'gateway'}
@@ -24,7 +27,10 @@ async def proxy(request: Request, path: str):
     target_base = ROUTES.get(resource)
     if not target_base:
         return Response(status_code=404, content=f'Unknown resource: {resource}')
-    target_url = f'{target_base}/{path}'
+    if resource in NO_VERSION_PREFIX:
+        target_url = f'{target_base}/{"/".join(segments[1:])}'
+    else:
+        target_url = f'{target_base}/{path}'
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.request(
