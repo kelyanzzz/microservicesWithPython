@@ -1,16 +1,20 @@
-# Infrastructure layer — raw database queries.
-#
-# Functions here take a SQLAlchemy Session and return ORM objects.
-# This is the only layer allowed to write SQL / ORM queries.
-#
-# Rules:
-# - No HTTP knowledge here (no Request, no HTTPException)
-# - No business rules here (no password hashing, no validation logic)
-# - Every function receives `db: Session` as its first argument
-#
-# This file should implement:
-# - create_user(db, data, hashed_password) -> User
-# - get_user(db, user_id) -> User | None
-# - list_users(db, limit, offset) -> tuple[list[User], int]
-#
-# See the README for the full implementation.
+﻿from sqlalchemy.orm import Session
+from app.models import User
+from app.schemas import UserCreate
+
+def get_users(db: Session):
+    return db.query(User).all()
+
+def get_user(db: Session, user_id: str):
+    return db.query(User).filter(User.id == user_id).first()
+
+def create_user(db: Session, user: UserCreate):
+    db_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=user.hashed_password
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
